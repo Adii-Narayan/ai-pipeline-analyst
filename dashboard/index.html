@@ -1,0 +1,736 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CI/CD Intelligence â€” Failure Operations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Inter+Tight:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- â•â• HEADER STRIP â•â• -->
+<header class="header-strip">
+  <div class="header-logo">CI/CD INTELLIGENCE</div>
+  <div class="sparkline-wrap" id="sparkline" title="Last 30 builds â€” green=pass, red=fail"></div>
+  <div class="header-meta">
+    <div class="hm-item"><span class="live-dot"></span><span class="hm-val" id="hm-total">0</span> diagnosed</div>
+    <div class="hm-item">high conf <span class="hm-val" id="hm-high">â€”</span></div>
+    <div class="hm-item" id="hm-time" style="color:var(--txt3)">â€”</div>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- â•â• ICON RAIL â•â• -->
+  <nav class="rail">
+    <button class="rail-btn active" onclick="showPage('failures',this)" id="rail-failures" title="Failures">
+      <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="3" width="7" height="7" rx="2"></rect>
+        <rect x="14" y="3" width="7" height="7" rx="2"></rect>
+        <rect x="3" y="14" width="7" height="7" rx="2"></rect>
+        <rect x="14" y="14" width="7" height="7" rx="2"></rect>
+      </svg><span class="tooltip">Failures</span>
+      <span class="rail-badge" id="rail-badge" style="display:none"></span>
+    </button>
+    <button class="rail-btn" onclick="showPage('settings',this)" title="Platform Setup">
+      <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M12 2v3M12 19v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M2 12h3M19 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"></path>
+      </svg><span class="tooltip">Platform Setup</span>
+    </button>
+    <div class="rail-sep"></div>
+    <button class="rail-btn" onclick="filterPlatform('GitHub Actions')" title="GitHub">
+      <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 2.5a9.5 9.5 0 0 0-3 18.52c.48.09.65-.2.65-.46v-1.7c-2.65.58-3.2-1.12-3.2-1.12-.43-1.1-1.06-1.4-1.06-1.4-.87-.6.07-.58.07-.58.96.07 1.47.99 1.47.99.85 1.46 2.23 1.04 2.77.8.09-.62.33-1.04.6-1.28-2.12-.24-4.35-1.06-4.35-4.72 0-1.04.37-1.9.98-2.56-.1-.24-.43-1.22.1-2.53 0 0 .81-.26 2.63.98A9.1 9.1 0 0 1 12 6.12c.82 0 1.64.11 2.4.32 1.82-1.24 2.62-.98 2.62-.98.53 1.31.2 2.29.1 2.53.61.66.98 1.52.98 2.56 0 3.67-2.24 4.48-4.37 4.72.34.29.65.88.65 1.78v2.64c0 .26.17.56.66.46A9.5 9.5 0 0 0 12 2.5Z"></path>
+      </svg><span class="tooltip">GitHub Actions</span>
+    </button>
+    <button class="rail-btn" onclick="filterPlatform('GitLab CI')" title="GitLab">
+      <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 21.5 3.3 8.2l2-5.7 3.5 7h6.4l3.5-7 2 5.7L12 21.5Z"></path>
+        <path d="M8.8 9.5 12 21.5l3.2-12"></path>
+      </svg><span class="tooltip">GitLab CI</span>
+    </button>
+    <button class="rail-btn" onclick="filterPlatform('Azure DevOps')" title="Azure">
+      <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 16.5 10.2 4l3.1 8.4 4.2-2.4L20 20 13.3 17l-4.5 3H4Z"></path>
+      </svg><span class="tooltip">Azure DevOps</span>
+    </button>
+    <button class="rail-btn" onclick="filterPlatform('Jenkins')" title="Jenkins">
+      <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6 21V9l6-5 6 5v12"></path>
+        <path d="M4 21h16M9 21v-7h6v7M9 10h6"></path>
+      </svg><span class="tooltip">Jenkins</span>
+    </button>
+    <div class="rail-sep"></div>
+    <button class="rail-btn" onclick="loadData()" title="Refresh">
+      <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M20 12a8 8 0 1 1-2.34-5.66"></path>
+        <path d="M20 4v6h-6"></path>
+      </svg><span class="tooltip">Refresh</span>
+    </button>
+  </nav>
+
+  <!-- â•â• MAIN â•â• -->
+  <main class="main">
+
+    <!-- â”€â”€ FAILURES PAGE â”€â”€ -->
+    <div class="page active" id="page-failures">
+      <div class="sec-hdr">
+        <div>
+          <div class="sec-eyebrow">Operations</div>
+          <div class="sec-title">Pipeline Failures</div>
+        </div>
+        <div class="sec-sub" id="last-refresh">â€”</div>
+      </div>
+
+      <div class="kpi-row">
+        <div class="kpi amber">
+          <div class="kpi-label">Total diagnosed</div>
+          <div class="kpi-value" id="k-total">â€”</div>
+          <div class="kpi-sub">all time</div>
+        </div>
+        <div class="kpi green">
+          <div class="kpi-label">High confidence</div>
+          <div class="kpi-value" id="k-high">â€”</div>
+          <div class="kpi-sub">% of diagnoses</div>
+        </div>
+        <div class="kpi red">
+          <div class="kpi-label">Top failure type</div>
+          <div class="kpi-value" id="k-cat" style="font-size:15px;letter-spacing:0;padding-top:5px">â€”</div>
+          <div class="kpi-sub">category</div>
+        </div>
+        <div class="kpi blue">
+          <div class="kpi-label">Platforms</div>
+          <div class="kpi-value" id="k-plat">â€”</div>
+          <div class="kpi-sub">connected</div>
+        </div>
+      </div>
+
+      <div class="filter-row">
+        <button class="f-btn on" onclick="setCat('',this)">ALL</button>
+        <button class="f-btn" onclick="setCat('test_failure',this)">TESTS</button>
+        <button class="f-btn" onclick="setCat('dependency',this)">DEPS</button>
+        <button class="f-btn" onclick="setCat('config',this)">CONFIG</button>
+        <button class="f-btn" onclick="setCat('env',this)">ENV</button>
+        <button class="f-btn" onclick="setCat('type_error',this)">TYPE</button>
+        <button class="f-btn" onclick="setCat('network',this)">NETWORK</button>
+        <div class="search-wrap">
+          <span class="search-ico" aria-hidden="true">
+            <svg class="ui-icon" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="7"></circle>
+              <path d="M20 20l-3.5-3.5"></path>
+            </svg>
+          </span>
+          <input class="search-inp" placeholder="search failuresâ€¦" id="sq" oninput="renderTable()">
+        </div>
+      </div>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Platform</th>
+              <th>Pipeline Â· Branch</th>
+              <th>Root cause</th>
+              <th>Category</th>
+              <th>Conf</th>
+              <th>When</th>
+            </tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="6"><div class="empty"><div class="empty-icon"><svg class="empty-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 8-8"></path><path d="M20 12a8 8 0 0 1-8 8"></path></svg></div><div class="empty-title">Loadingâ€¦</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- â”€â”€ SETTINGS PAGE â”€â”€ -->
+    <div class="page" id="page-settings">
+      <div class="sec-hdr">
+        <div>
+          <div class="sec-eyebrow">Configuration</div>
+          <div class="sec-title">Platform Setup</div>
+        </div>
+        <div class="sec-sub" style="font-size:10px;">credentials stored in browser + config.json Â· never sent externally</div>
+      </div>
+
+      <div class="settings-layout">
+        <!-- Left: platform list -->
+        <div>
+          <div class="plat-list">
+            <div class="plat-list-hdr">Platforms</div>
+            <div class="plat-row active" onclick="selectPlat('github',this)">
+              <span class="plat-row-icon icon-github" aria-hidden="true"></span>
+              <span class="plat-row-name">GitHub Actions</span>
+              <span class="plat-row-status" id="ps-github"></span>
+            </div>
+            <div class="plat-row" onclick="selectPlat('gitlab',this)">
+              <span class="plat-row-icon icon-gitlab" aria-hidden="true"></span>
+              <span class="plat-row-name">GitLab CI</span>
+              <span class="plat-row-status" id="ps-gitlab"></span>
+            </div>
+            <div class="plat-row" onclick="selectPlat('azure',this)">
+              <span class="plat-row-icon icon-azure" aria-hidden="true"></span>
+              <span class="plat-row-name">Azure DevOps</span>
+              <span class="plat-row-status" id="ps-azure"></span>
+            </div>
+            <div class="plat-row" onclick="selectPlat('jenkins',this)">
+              <span class="plat-row-icon icon-jenkins" aria-hidden="true"></span>
+              <span class="plat-row-name">Jenkins</span>
+              <span class="plat-row-status" id="ps-jenkins"></span>
+            </div>
+          </div>
+
+          <!-- Configured summary -->
+          <div class="configured-section">
+            <div class="configured-hdr">Configured</div>
+            <div id="conf-list"><div style="font-family:var(--mono);font-size:10px;color:var(--txt3);padding:8px 0;">None yet</div></div>
+          </div>
+
+          <!-- .env preview -->
+          <div class="env-section">
+            <div class="env-toggle">
+              <span style="text-transform:uppercase;letter-spacing:.1em;">.env preview</span>
+              <button class="env-toggle-btn" onclick="toggleEnv()">show / hide</button>
+            </div>
+            <div class="env-box" id="env-box"></div>
+          </div>
+        </div>
+
+        <!-- Right: config forms -->
+        <div id="cfg-forms">
+
+          <!-- GITHUB -->
+          <div class="cfg-panel visible" id="cfg-github">
+            <div class="cfg-hdr">
+              <span class="cfg-hdr-icon icon-github" aria-hidden="true"></span>
+              <div>
+                <div class="cfg-hdr-title">GitHub Actions</div>
+                <div class="cfg-hdr-sub">Personal access token + optional webhook secret</div>
+              </div>
+            </div>
+            <div class="cfg-body">
+              <div class="field">
+                <div class="field-lbl">
+                  GitHub Token
+                  <button class="help-trigger" onclick="toggleHelp('gh-th')">? how to get</button>
+                </div>
+                <input class="field-inp" id="gh-token" type="password" placeholder="ghp_xxxxxxxxxxxx">
+                <div class="field-hint">Fine-grained PAT â€” Actions (read) Â· Contents (read) Â· Pull requests (read/write)</div>
+                <div class="help-drawer" id="gh-th">
+                  <div class="help-drawer-title">Create a GitHub Personal Access Token</div>
+                  <div class="help-step"><div class="help-num">1</div><div>github.com â†’ <span class="hcode">Settings â†’ Developer settings â†’ Personal access tokens â†’ Fine-grained tokens</span></div></div>
+                  <div class="help-step"><div class="help-num">2</div><div>Click <span class="hcode">Generate new token</span>, set an expiry</div></div>
+                  <div class="help-step"><div class="help-num">3</div><div>Repository permissions: <span class="hcode">Actions â†’ Read</span> Â· <span class="hcode">Contents â†’ Read</span> Â· <span class="hcode">Pull requests â†’ Read & Write</span></div></div>
+                  <div class="help-step"><div class="help-num">4</div><div>Click <span class="hcode">Generate token</span> â€” starts with <span class="hcode">ghp_</span></div></div>
+                </div>
+              </div>
+              <div class="field">
+                <div class="field-lbl">
+                  Webhook Secret <span class="field-opt">(optional)</span>
+                  <button class="help-trigger" onclick="toggleHelp('gh-sh')">? how to set up</button>
+                </div>
+                <input class="field-inp" id="gh-secret" type="password" placeholder="any random string you choose">
+                <div class="field-hint">Repo â†’ Settings â†’ Webhooks â†’ Add webhook Â· Event: Workflow runs</div>
+                <div class="help-drawer" id="gh-sh">
+                  <div class="help-drawer-title">Add the GitHub Webhook</div>
+                  <div class="help-step"><div class="help-num">1</div><div>Repo â†’ <span class="hcode">Settings â†’ Webhooks â†’ Add webhook</span></div></div>
+                  <div class="help-step"><div class="help-num">2</div><div>Payload URL: <span class="hcode">https://your-agent-url/webhook</span></div></div>
+                  <div class="help-step"><div class="help-num">3</div><div>Content type: <span class="hcode">application/json</span> Â· Secret: same string as above</div></div>
+                  <div class="help-step"><div class="help-num">4</div><div>Events: select <span class="hcode">Workflow runs</span></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="cfg-footer">
+              <button class="btn-save" onclick="savePlat('github')">Save</button>
+              <button class="btn-clear" onclick="clearPlat('github')">Clear</button>
+              <span class="save-ok" id="so-github">âœ“ saved to server</span>
+            </div>
+          </div>
+
+          <!-- GITLAB -->
+          <div class="cfg-panel" id="cfg-gitlab">
+            <div class="cfg-hdr">
+              <span class="cfg-hdr-icon icon-gitlab" aria-hidden="true"></span>
+              <div>
+                <div class="cfg-hdr-title">GitLab CI</div>
+                <div class="cfg-hdr-sub">Access token + your GitLab instance URL</div>
+              </div>
+            </div>
+            <div class="cfg-body">
+              <div class="field">
+                <div class="field-lbl">GitLab URL</div>
+                <input class="field-inp" id="gl-url" type="text" placeholder="https://gitlab.com">
+                <div class="field-hint">For self-hosted: https://gitlab.yourcompany.com</div>
+              </div>
+              <div class="field">
+                <div class="field-lbl">
+                  Access Token
+                  <button class="help-trigger" onclick="toggleHelp('gl-th')">? how to get</button>
+                </div>
+                <input class="field-inp" id="gl-token" type="password" placeholder="glpat-xxxxxxxxxxxx">
+                <div class="field-hint">Personal or project token â€” scopes: api Â· read_repository</div>
+                <div class="help-drawer" id="gl-th">
+                  <div class="help-drawer-title">Create a GitLab Access Token</div>
+                  <div class="help-step"><div class="help-num">1</div><div>gitlab.com â†’ <span class="hcode">User Settings â†’ Access Tokens</span></div></div>
+                  <div class="help-step"><div class="help-num">2</div><div>Click <span class="hcode">Add new token</span>, set name and expiry</div></div>
+                  <div class="help-step"><div class="help-num">3</div><div>Scopes: tick <span class="hcode">api</span> and <span class="hcode">read_repository</span></div></div>
+                  <div class="help-step"><div class="help-num">4</div><div>Click <span class="hcode">Create personal access token</span> â€” starts with <span class="hcode">glpat-</span></div></div>
+                </div>
+              </div>
+              <div class="field">
+                <div class="field-lbl">
+                  Webhook Secret <span class="field-opt">(optional)</span>
+                  <button class="help-trigger" onclick="toggleHelp('gl-sh')">? how to set up</button>
+                </div>
+                <input class="field-inp" id="gl-secret" type="password" placeholder="any random string">
+                <div class="help-drawer" id="gl-sh">
+                  <div class="help-drawer-title">Add the GitLab Webhook</div>
+                  <div class="help-step"><div class="help-num">1</div><div>Project â†’ <span class="hcode">Settings â†’ Webhooks â†’ Add new webhook</span></div></div>
+                  <div class="help-step"><div class="help-num">2</div><div>URL: <span class="hcode">https://your-agent-url/webhook</span> Â· Secret token: same string as above</div></div>
+                  <div class="help-step"><div class="help-num">3</div><div>Tick <span class="hcode">Pipeline events</span> â†’ Add webhook</div></div>
+                </div>
+              </div>
+            </div>
+            <div class="cfg-footer">
+              <button class="btn-save" onclick="savePlat('gitlab')">Save</button>
+              <button class="btn-clear" onclick="clearPlat('gitlab')">Clear</button>
+              <span class="save-ok" id="so-gitlab">âœ“ saved to server</span>
+            </div>
+          </div>
+
+          <!-- AZURE -->
+          <div class="cfg-panel" id="cfg-azure">
+            <div class="cfg-hdr">
+              <span class="cfg-hdr-icon icon-azure" aria-hidden="true"></span>
+              <div>
+                <div class="cfg-hdr-title">Azure DevOps</div>
+                <div class="cfg-hdr-sub">Organisation slug + Personal Access Token</div>
+              </div>
+            </div>
+            <div class="cfg-body">
+              <div class="field">
+                <div class="field-lbl">
+                  Organisation Name
+                  <button class="help-trigger" onclick="toggleHelp('az-oh')">? where to find</button>
+                </div>
+                <input class="field-inp" id="az-org" type="text" placeholder="your-org-name">
+                <div class="field-hint">Slug from URL: dev.azure.com/<strong style="color:var(--amber)">your-org-name</strong>/project</div>
+                <div class="help-drawer" id="az-oh">
+                  <div class="help-drawer-title">Finding your Azure DevOps org name</div>
+                  <div class="help-step"><div class="help-num">1</div><div>Go to <span class="hcode">dev.azure.com</span></div></div>
+                  <div class="help-step"><div class="help-num">2</div><div>Your org is the first path segment: dev.azure.com/<span class="hcode">ORG-NAME</span>/project</div></div>
+                </div>
+              </div>
+              <div class="field">
+                <div class="field-lbl">
+                  Personal Access Token
+                  <button class="help-trigger" onclick="toggleHelp('az-ph')">? how to get</button>
+                </div>
+                <input class="field-inp" id="az-pat" type="password" placeholder="paste your PAT here">
+                <div class="field-hint">Scopes: Build (Read) Â· Code (Read) Â· Test Management (Read) Â· Work Items (Read & Write)</div>
+                <div class="help-drawer" id="az-ph">
+                  <div class="help-drawer-title">Create an Azure DevOps PAT</div>
+                  <div class="help-step"><div class="help-num">1</div><div>dev.azure.com â†’ <span class="hcode">User Settings (avatar) â†’ Personal access tokens</span></div></div>
+                  <div class="help-step"><div class="help-num">2</div><div>Click <span class="hcode">New Token</span>, name it and set expiry</div></div>
+                  <div class="help-step"><div class="help-num">3</div><div>Scopes: <span class="hcode">Build â†’ Read</span> Â· <span class="hcode">Code â†’ Read</span> Â· <span class="hcode">Test Management â†’ Read</span> Â· <span class="hcode">Work Items â†’ Read & Write</span></div></div>
+                  <div class="help-step"><div class="help-num">4</div><div>Click <span class="hcode">Create</span> and copy immediately â€” not shown again</div></div>
+                </div>
+              </div>
+              <div class="field">
+                <div class="field-lbl">
+                  Webhook Secret <span class="field-opt">(optional)</span>
+                  <button class="help-trigger" onclick="toggleHelp('az-sh')">? how to set up</button>
+                </div>
+                <input class="field-inp" id="az-secret" type="password" placeholder="any random string">
+                <div class="help-drawer" id="az-sh">
+                  <div class="help-drawer-title">Add the Azure Service Hook</div>
+                  <div class="help-step"><div class="help-num">1</div><div>Project â†’ <span class="hcode">Project Settings â†’ Service hooks â†’ Create subscription â†’ Web Hooks</span></div></div>
+                  <div class="help-step"><div class="help-num">2</div><div>Event: <span class="hcode">Build completed</span> Â· Filter: Status = <span class="hcode">Failed</span></div></div>
+                  <div class="help-step"><div class="help-num">3</div><div>URL: <span class="hcode">https://your-agent-url/webhook</span> Â· Basic auth password: same string as above</div></div>
+                </div>
+              </div>
+            </div>
+            <div class="cfg-footer">
+              <button class="btn-save" onclick="savePlat('azure')">Save</button>
+              <button class="btn-clear" onclick="clearPlat('azure')">Clear</button>
+              <span class="save-ok" id="so-azure">âœ“ saved to server</span>
+            </div>
+          </div>
+
+          <!-- JENKINS -->
+          <div class="cfg-panel" id="cfg-jenkins">
+            <div class="cfg-hdr">
+              <span class="cfg-hdr-icon icon-jenkins" aria-hidden="true"></span>
+              <div>
+                <div class="cfg-hdr-title">Jenkins</div>
+                <div class="cfg-hdr-sub">Server URL + username + API token</div>
+              </div>
+            </div>
+            <div class="cfg-body">
+              <div class="field">
+                <div class="field-lbl">Jenkins URL</div>
+                <input class="field-inp" id="jk-url" type="text" placeholder="https://jenkins.yourcompany.com">
+                <div class="field-hint">Full URL with protocol, no trailing slash</div>
+              </div>
+              <div class="field">
+                <div class="field-lbl">Username</div>
+                <input class="field-inp" id="jk-user" type="text" placeholder="admin">
+              </div>
+              <div class="field">
+                <div class="field-lbl">
+                  API Token
+                  <button class="help-trigger" onclick="toggleHelp('jk-th')">? how to get</button>
+                </div>
+                <input class="field-inp" id="jk-token" type="password" placeholder="your api token">
+                <div class="help-drawer" id="jk-th">
+                  <div class="help-drawer-title">Create a Jenkins API Token</div>
+                  <div class="help-step"><div class="help-num">1</div><div>Log into Jenkins â†’ click your username (top right)</div></div>
+                  <div class="help-step"><div class="help-num">2</div><div>Click <span class="hcode">Configure â†’ API Token â†’ Add new Token</span></div></div>
+                  <div class="help-step"><div class="help-num">3</div><div>Name it and click <span class="hcode">Generate</span> â€” copy immediately</div></div>
+                </div>
+              </div>
+              <div class="field">
+                <div class="field-lbl">
+                  Webhook Secret <span class="field-opt">(optional)</span>
+                  <button class="help-trigger" onclick="toggleHelp('jk-sh')">? how to set up</button>
+                </div>
+                <input class="field-inp" id="jk-secret" type="password" placeholder="any random string">
+                <div class="help-drawer" id="jk-sh">
+                  <div class="help-drawer-title">Set up Jenkins Webhook</div>
+                  <div class="help-step"><div class="help-num">1</div><div>Install <span class="hcode">Generic Webhook Trigger</span> plugin via Manage Jenkins â†’ Plugins</div></div>
+                  <div class="help-step"><div class="help-num">2</div><div>Job â†’ Post-build Actions â†’ Generic Webhook â†’ URL: <span class="hcode">https://your-agent-url/webhook</span></div></div>
+                  <div class="help-step"><div class="help-num">3</div><div>Token field: same string as above</div></div>
+                </div>
+              </div>
+            </div>
+            <div class="cfg-footer">
+              <button class="btn-save" onclick="savePlat('jenkins')">Save</button>
+              <button class="btn-clear" onclick="clearPlat('jenkins')">Clear</button>
+              <span class="save-ok" id="so-jenkins">âœ“ saved to server</span>
+            </div>
+          </div>
+
+        </div><!-- /cfg-forms -->
+      </div><!-- /settings-layout -->
+    </div><!-- /page-settings -->
+
+  </main>
+</div>
+
+<!-- Detail panel -->
+<div class="overlay" id="overlay" onclick="closePanel()"></div>
+<div class="panel" id="panel">
+  <div class="panel-hdr">
+    <div class="panel-hdr-left" id="panel-hdr-content"></div>
+    <button class="panel-close" onclick="closePanel()">ESC Â· close</button>
+  </div>
+  <div class="panel-body" id="panel-body"></div>
+</div>
+
+<script>
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// STATE
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+let allData=[], platFilter='', catFilter='';
+
+const CAT_ICON={test_failure:'Tests',dependency:'Deps',config:'Config',env:'Env',lint:'Lint',type_error:'Type',network:'Network',timeout:'Timeout',other:'Other'};
+const PLAT_CLS={'GitHub Actions':'github','GitLab CI':'gitlab','Azure DevOps':'azure','Jenkins':'jenkins'};
+const PLAT_KEYS={
+  github: {fields:['gh-token','gh-secret'],envKeys:['GITHUB_TOKEN','GITHUB_WEBHOOK_SECRET']},
+  gitlab: {fields:['gl-url','gl-token','gl-secret'],envKeys:['GITLAB_URL','GITLAB_TOKEN','GITLAB_WEBHOOK_SECRET']},
+  azure:  {fields:['az-org','az-pat','az-secret'],envKeys:['AZURE_DEVOPS_ORG','AZURE_DEVOPS_PAT','AZURE_WEBHOOK_SECRET']},
+  jenkins:{fields:['jk-url','jk-user','jk-token','jk-secret'],envKeys:['JENKINS_URL','JENKINS_USER','JENKINS_TOKEN','JENKINS_WEBHOOK_SECRET']},
+};
+const PLATFORM_KEYS=PLAT_KEYS;
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// NAV
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+function showPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.rail-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  if(id==='settings') renderSaved();
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// DATA
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+async function loadData(){
+  let data;
+  try{
+    const r=await fetch('/api/history?limit=100');
+    if(!r.ok) throw 0;
+    data=await r.json();
+    if(!data.length) data=demo();
+  }catch{data=demo();}
+  allData=data;
+  renderHeader();
+  renderSparkline();
+  renderTable();
+  document.getElementById('last-refresh').textContent='refreshed '+new Date().toLocaleTimeString();
+}
+
+function renderHeader(){
+  const n=allData.length;
+  const h=allData.filter(d=>d.confidence==='high').length;
+  document.getElementById('hm-total').textContent=n;
+  document.getElementById('hm-high').textContent=n?Math.round(h/n*100)+'%':'â€”';
+  document.getElementById('k-total').textContent=n||'â€”';
+  document.getElementById('k-high').textContent=n?Math.round(h/n*100)+'%':'â€”';
+  const cats={};allData.forEach(d=>cats[d.category]=(cats[d.category]||0)+1);
+  const top=Object.entries(cats).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('k-cat').textContent=top?(CAT_ICON[top[0]]||top[0]).replace('_',' '):'â€”';
+  document.getElementById('k-plat').textContent=new Set(allData.map(d=>d.platform)).size||'â€”';
+  const badge=document.getElementById('rail-badge');
+  const fails=allData.filter(d=>d.confidence==='low').length;
+  if(fails>0){badge.textContent=fails;badge.style.display='flex';}else badge.style.display='none';
+  document.getElementById('hm-time').textContent=new Date().toLocaleTimeString();
+}
+
+function renderSparkline(){
+  const el=document.getElementById('sparkline');
+  const last=allData.slice(0,40).reverse();
+  if(!last.length){el.innerHTML='<span style="font-family:var(--mono);font-size:9px;color:var(--txt3);">no data</span>';return;}
+  const maxH=28;
+  el.innerHTML=last.map((d,i)=>{
+    const cls=d.confidence==='high'?'pass':d.confidence==='medium'?'warn':'fail';
+    const h=cls==='fail'?maxH:cls==='warn'?Math.round(maxH*.6):Math.round(maxH*.35);
+    return `<div class="spark-bar ${cls}" style="height:${h}px;opacity:${.5+i/last.length*.5}" title="${esc(d.root_cause?.slice(0,60)||'')}"></div>`;
+  }).join('');
+}
+
+function renderTable(){
+  const q=document.getElementById('sq').value.toLowerCase();
+  const rows=allData.filter(d=>{
+    if(platFilter&&d.platform!==platFilter)return false;
+    if(catFilter&&d.category!==catFilter)return false;
+    if(q&&!(d.root_cause||'').toLowerCase().includes(q)&&!(d.pipeline_name||'').toLowerCase().includes(q))return false;
+    return true;
+  });
+  const tbody=document.getElementById('tbody');
+  if(!rows.length){
+    tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-icon"><svg class="empty-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16"></path><path d="M12 4v16"></path></svg></div><div class="empty-title">No failures match your filters</div><div class="empty-sub">Waiting for pipeline webhooks, or adjust filters above</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML=rows.map(d=>{
+    const pc=PLAT_CLS[d.platform]||'github';
+    return `<tr onclick="openPanel(${d.id})">
+      <td><span class="plat-tag ${pc}">${d.platform}</span></td>
+      <td><div class="pipe-name">${esc(d.pipeline_name||d.repo||'â€”')}</div><div class="branch-name">${esc(d.branch||'')}</div></td>
+      <td><div class="cause-main">${esc((d.root_cause||'').slice(0,80))}${(d.root_cause||'').length>80?'â€¦':''}</div><div class="cause-sub">${esc(d.repo||'')}</div></td>
+      <td><span class="cat-chip">${CAT_ICON[d.category]||d.category||'other'}</span></td>
+      <td><div class="conf-pip ${d.confidence||'low'}"><div class="pip-dot"></div>${d.confidence||'low'}</div></td>
+      <td class="ts">${relTime(d.timestamp)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function filterPlatform(p){
+  platFilter=platFilter===p?'':p;
+  showPage('failures',document.querySelector('.rail-btn.active'));
+  renderTable();
+}
+
+function setCat(c,btn){
+  catFilter=c;
+  document.querySelectorAll('.f-btn').forEach(b=>b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  renderTable();
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// DETAIL PANEL
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+function openPanel(id){
+  const d=allData.find(x=>x.id===id);if(!d)return;
+  const pc=PLAT_CLS[d.platform]||'github';
+  document.getElementById('panel-hdr-content').innerHTML=`
+    <div class="panel-meta">
+      <span class="plat-tag ${pc}">${esc(d.platform)}</span>
+      <div class="conf-pip ${d.confidence||'low'}" style="font-size:10px"><div class="pip-dot"></div>${d.confidence}</div>
+      <span style="font-family:var(--mono);font-size:9px;color:var(--txt3)">${relTime(d.timestamp)}</span>
+    </div>
+    <div class="panel-title">${esc(d.root_cause)}</div>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--txt2)">${esc(d.pipeline_name||'')} Â· <span style="color:var(--blue)">${esc(d.branch||'')}</span></div>
+  `;
+  let body='';
+  if(d.technical_detail) body+=`<div class="p-section"><div class="p-label">Technical detail</div><div class="p-body">${esc(d.technical_detail)}</div></div>`;
+  if(d.affected_files?.length) body+=`<div class="p-section"><div class="p-label">Affected files</div>${d.affected_files.map(f=>`<div class="p-file"><span class="file-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path></svg></span><span class="p-file-path">${esc(f.file)}</span>${f.line?`<span class="p-file-line">:${f.line}</span>`:''}<span class="p-file-reason">${esc(f.reason||'')}</span></div>`).join('')}</div>`;
+  if(d.suggested_fix) body+=`<div class="p-section"><div class="p-label">Suggested fix</div><div class="p-body">${esc(d.suggested_fix)}</div></div>`;
+  if(d.suggested_fix_code) body+=`<div class="p-section"><div class="p-label">Code fix</div><div class="p-code">${esc(d.suggested_fix_code)}</div></div>`;
+  if(d.related_commit) body+=`<div class="p-section"><div class="p-label">Likely introduced by</div><div class="p-code">${esc(d.related_commit)}</div></div>`;
+  if(d.comment_url) body+=`<a class="panel-link" href="${esc(d.comment_url)}" target="_blank"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7"></path><path d="M9 7h8v8"></path></svg> view pr comment</a>`;
+  document.getElementById('panel-body').innerHTML=body;
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('panel').classList.add('open');
+}
+function closePanel(){
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('panel').classList.remove('open');
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closePanel();});
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// SETTINGS
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+function selectPlat(p,row){
+  document.querySelectorAll('.plat-row').forEach(r=>r.classList.remove('active'));
+  document.querySelectorAll('.cfg-panel').forEach(c=>c.classList.remove('visible'));
+  if(row) row.classList.add('active');
+  document.getElementById('cfg-'+p).classList.add('visible');
+  loadIntoForm(p);
+}
+
+function toggleHelp(id){document.getElementById(id).classList.toggle('open');}
+
+function loadIntoForm(p){
+  const raw=localStorage.getItem('cicd_'+p);
+  if(!raw)return;
+  const cfg=JSON.parse(raw);
+  PLATFORM_KEYS[p].fields.forEach((f,i)=>{
+    const el=document.getElementById(f);
+    if(el) el.value=cfg[PLATFORM_KEYS[p].envKeys[i]]||'';
+  });
+}
+
+async function savePlat(p){
+  const cfg=PLATFORM_KEYS[p];
+  const saved={};
+  cfg.fields.forEach((f,i)=>{saved[cfg.envKeys[i]]=document.getElementById(f).value.trim();});
+  localStorage.setItem('cicd_'+p,JSON.stringify(saved));
+  document.getElementById('ps-'+p).classList.add('configured');
+  try{
+    await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(saved)});
+  }catch{}
+  const ok=document.getElementById('so-'+p);
+  ok.classList.add('show');setTimeout(()=>ok.classList.remove('show'),2500);
+  renderSaved();
+}
+
+async function clearPlat(p){
+  localStorage.removeItem('cicd_'+p);
+  PLATFORM_KEYS[p].fields.forEach(f=>{const el=document.getElementById(f);if(el)el.value='';});
+  document.getElementById('ps-'+p).classList.remove('configured');
+  try{await Promise.all(PLATFORM_KEYS[p].envKeys.map(k=>fetch('/api/config/'+k,{method:'DELETE'})));}catch{}
+  renderSaved();
+}
+
+function renderSaved(){
+  const icons={github:'icon-github',gitlab:'icon-gitlab',azure:'icon-azure',jenkins:'icon-jenkins'};
+  const names={github:'GitHub Actions',gitlab:'GitLab CI',azure:'Azure DevOps',jenkins:'Jenkins'};
+  const list=document.getElementById('conf-list');
+  let html='',any=false;
+  Object.keys(PLATFORM_KEYS).forEach(p=>{
+    const raw=localStorage.getItem('cicd_'+p);
+    if(!raw)return;
+    const cfg=JSON.parse(raw);
+    if(!Object.values(cfg).some(v=>v))return;
+    any=true;
+    document.getElementById('ps-'+p).classList.add('configured');
+    const firstKey=Object.keys(cfg)[0];
+    const firstVal=cfg[firstKey]?cfg[firstKey].slice(0,4)+'â€¢â€¢â€¢â€¢':'â€”';
+    html+=`<div class="conf-card">
+      <div class="conf-card-icon ${icons[p]}" aria-hidden="true"></div>
+      <div><div class="conf-card-name">${names[p]}</div><div class="conf-card-detail">${firstKey}=${firstVal}</div></div>
+      <div class="conf-card-acts">
+        <button class="act-btn" onclick="selectPlat('${p}',document.querySelectorAll('.plat-row')[${Object.keys(PLATFORM_KEYS).indexOf(p)}])">edit</button>
+        <button class="act-btn del" onclick="clearPlat('${p}')">remove</button>
+      </div>
+    </div>`;
+  });
+  list.innerHTML=any?html:'<div style="font-family:var(--mono);font-size:10px;color:var(--txt3);padding:6px 0;">No platforms configured â€” select one above</div>';
+  renderEnvPreview();
+}
+
+function toggleEnv(){
+  const el=document.getElementById('env-box');
+  el.classList.toggle('show');
+  renderEnvPreview();
+}
+
+function renderEnvPreview(){
+  const el=document.getElementById('env-box');
+  if(!el.classList.contains('show'))return;
+  const secs={
+    github:{label:'GitHub',keys:PLATFORM_KEYS.github.envKeys},
+    gitlab:{label:'GitLab',keys:PLATFORM_KEYS.gitlab.envKeys},
+    azure:{label:'Azure DevOps',keys:PLATFORM_KEYS.azure.envKeys},
+    jenkins:{label:'Jenkins',keys:PLATFORM_KEYS.jenkins.envKeys},
+  };
+  let lines=[`<button class="env-copy" onclick="copyEnv()">copy</button>`];
+  lines.push(`<span class="ec"># CI/CD Intelligence Agent â€” .env</span>`);
+  lines.push(`<span class="ek">ANTHROPIC_API_KEY</span>=<span class="ev">sk-ant-...</span>`);
+  lines.push(`<span class="ek">PORT</span>=<span class="ev">8080</span>`);
+  lines.push('');
+  Object.entries(secs).forEach(([p,sec])=>{
+    const raw=localStorage.getItem('cicd_'+p);
+    const cfg=raw?JSON.parse(raw):{};
+    lines.push(`<span class="ec"># â”€â”€ ${sec.label} â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€</span>`);
+    sec.keys.forEach(k=>{
+      const v=cfg[k]||'';
+      lines.push(`<span class="ek">${k}</span>=<span class="ev">${esc(v||'your-value-here')}</span>`);
+    });
+    lines.push('');
+  });
+  el.innerHTML=lines.join('\n');
+}
+
+function copyEnv(){
+  const text=document.getElementById('env-box').innerText.replace(/copy\n?/,'').trim();
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn=document.querySelector('.env-copy');
+    btn.textContent='copied';setTimeout(()=>btn.textContent='copy',2000);
+  });
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// HELPERS
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function relTime(iso){
+  const d=Date.now()-new Date(iso).getTime(),m=Math.floor(d/60000);
+  if(m<1)return 'just now';if(m<60)return m+'m ago';
+  const h=Math.floor(m/60);if(h<24)return h+'h ago';return Math.floor(h/24)+'d ago';
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// DEMO DATA
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+function demo(){
+  const now=new Date(),ago=m=>new Date(now-m*60000).toISOString();
+  return [
+    {id:1,timestamp:ago(3),platform:'GitHub Actions',pipeline_name:'CI / test',branch:'feature/auth-redesign',repo:'acme/backend',root_cause:'Redis 4.x returns bytes instead of str â€” token comparison on line 84 always evaluates to False.',technical_detail:'Upgrading redis-py from 3.5 to 4.x changed cache.get() to return bytes. The == comparison against a str always fails.',affected_files:[{file:'auth/token_refresh.py',line:84,reason:'bytes vs str comparison'}],suggested_fix:'Decode the cached value before comparing: stored.decode() == token',suggested_fix_code:'-return self.cache.get(f"token:{token}") == token\n+stored = self.cache.get(f"token:{token}")\n+return stored and stored.decode() == token',confidence:'high',category:'test_failure',related_commit:'Upgrade redis-py to 4.6.0',comment_url:''},
+    {id:2,timestamp:ago(18),platform:'Azure DevOps',pipeline_name:'Build-and-test',branch:'main',repo:'myorg/api-service',root_cause:'npm cannot find package.json â€” workingDirectory set to /frontend but package.json remains at repo root.',technical_detail:'Pipeline YAML workingDirectory updated but package.json was not moved alongside.',affected_files:[{file:'azure-pipelines.yml',line:14,reason:'wrong workingDirectory'}],suggested_fix:'Revert workingDirectory to repo root or move package.json into /frontend.',suggested_fix_code:'-workingDirectory: $(System.DefaultWorkingDirectory)/frontend\n+workingDirectory: $(System.DefaultWorkingDirectory)',confidence:'high',category:'config',related_commit:'Move frontend into /frontend subdirectory',comment_url:''},
+    {id:3,timestamp:ago(45),platform:'GitLab CI',pipeline_name:'.gitlab-ci / test',branch:'fix/payment-handler',repo:'team/payments',root_cause:'STRIPE_SECRET_KEY not set â€” Stripe SDK throws AuthenticationError on import.',technical_detail:'The CI job variables block does not declare STRIPE_SECRET_KEY. Stripe initialises on import and raises immediately.',affected_files:[{file:'.gitlab-ci.yml',line:22,reason:'missing env var'},{file:'payments/stripe_client.py',line:5,reason:'os.environ key error'}],suggested_fix:'Add STRIPE_SECRET_KEY as a masked CI/CD variable in GitLab project settings.',suggested_fix_code:'variables:\n  STRIPE_SECRET_KEY: $STRIPE_SECRET_KEY',confidence:'high',category:'env',related_commit:'Add Stripe payment integration',comment_url:''},
+    {id:4,timestamp:ago(92),platform:'Jenkins',pipeline_name:'backend-pipeline',branch:'release/2.4',repo:'internal/monolith',root_cause:'Maven cannot resolve spring-boot-starter:3.2.0 â€” Nexus proxy not yet synced with Maven Central.',technical_detail:'Spring Boot 3.2.0 released recently; the internal Nexus cache is stale for this artifact.',affected_files:[{file:'pom.xml',line:12,reason:'spring-boot-starter 3.2.0 unavailable'}],suggested_fix:'Trigger a manual Nexus proxy sync or temporarily add Maven Central directly.',suggested_fix_code:'',confidence:'medium',category:'dependency',related_commit:'Bump Spring Boot to 3.2.0',comment_url:''},
+    {id:5,timestamp:ago(130),platform:'GitHub Actions',pipeline_name:'lint-and-type-check',branch:'feat/new-dashboard',repo:'acme/frontend',root_cause:"TypeScript: Property 'userId' does not exist on type 'Request' â€” Express types not extended for auth middleware.",technical_detail:'Auth middleware adds req.userId but no declaration merging file exists for Express.Request.',affected_files:[{file:'src/middleware/auth.ts',line:31,reason:'no type declaration'},{file:'src/types/express.d.ts',line:0,reason:'file missing'}],suggested_fix:'Create src/types/express.d.ts with module augmentation for Express.Request.',suggested_fix_code:"declare namespace Express {\n  interface Request { userId?: string; }\n}",confidence:'high',category:'type_error',related_commit:'Add JWT auth middleware',comment_url:''},
+    {id:6,timestamp:ago(210),platform:'GitLab CI',pipeline_name:'integration-tests',branch:'main',repo:'team/data-pipeline',root_cause:'PostgreSQL connection refused â€” job uses DB_HOST=localhost but service container alias is postgres.',technical_detail:'gitlab-ci.yml services starts postgres:15; the job must use the service name as host, not localhost.',affected_files:[{file:'.gitlab-ci.yml',line:18,reason:'DB_HOST wrong value'}],suggested_fix:'Set DB_HOST: postgres to match the service alias.',suggested_fix_code:'-  DB_HOST: localhost\n+  DB_HOST: postgres',confidence:'high',category:'network',related_commit:'Add integration test stage',comment_url:''},
+    {id:7,timestamp:ago(310),platform:'Jenkins',pipeline_name:'docker-build',branch:'main',repo:'ops/containers',root_cause:'Docker COPY ./dist fails â€” tsc compilation step was removed from this pipeline stage, leaving dist/ absent.',technical_detail:'Dockerfile references ./dist but the build stage no longer runs npm run build.',affected_files:[{file:'Dockerfile',line:8,reason:'./dist missing at build time'}],suggested_fix:'Re-add npm run build before the Docker build step.',suggested_fix_code:'+ - script: npm run build\n    displayName: Compile TypeScript\n  - task: Docker@2',confidence:'medium',category:'config',related_commit:'Refactor pipeline stages',comment_url:''},
+  ];
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// BOOT
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+async function syncToServer(){
+  for(const p of Object.keys(PLATFORM_KEYS)){
+    const raw=localStorage.getItem('cicd_'+p);
+    if(!raw)continue;
+    const saved=JSON.parse(raw);
+    if(!Object.values(saved).some(v=>v))continue;
+    try{await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(saved)});}catch{}
+  }
+}
+
+loadData();
+syncToServer();
+setInterval(loadData,15000);
+</script>
+</body>
+</html>
+
