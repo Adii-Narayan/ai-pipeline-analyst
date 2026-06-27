@@ -664,7 +664,9 @@ function renderEnvPreview(){
   };
   let lines=[`<button class="env-copy" onclick="copyEnv()">copy</button>`];
   lines.push(`<span class="ec"># CI/CD Intelligence Agent â€” .env</span>`);
+  lines.push(`<span class="ek">LLM_MODEL</span>=<span class="ev">anthropic/claude-sonnet-4-20250514</span>`);
   lines.push(`<span class="ek">ANTHROPIC_API_KEY</span>=<span class="ev">sk-ant-...</span>`);
+  lines.push(`<span class="ec"># Or use OPENAI_API_KEY, GEMINI_API_KEY, or GOOGLE_API_KEY with a matching model</span>`);
   lines.push(`<span class="ek">PORT</span>=<span class="ev">8080</span>`);
   lines.push('');
   Object.entries(secs).forEach(([p,sec])=>{

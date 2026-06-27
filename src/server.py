@@ -4,7 +4,8 @@ Single /webhook endpoint handles GitHub, GitLab, Azure DevOps, and Jenkins.
 
 Credentials are loaded from config.json (saved by the dashboard UI) —
 you do NOT need to put platform tokens in your .env file.
-LLM settings (LLM_MODEL + LLM_API_KEY) and PORT go in .env — or configure via the dashboard.
+LLM settings (LLM_MODEL + OPENAI_API_KEY, ANTHROPIC_API_KEY, or GEMINI_API_KEY)
+and PORT go in .env — or configure via the dashboard.
 """
 
 import os

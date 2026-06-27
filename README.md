@@ -26,6 +26,8 @@ An AI-powered DevOps agent that diagnoses pipeline failures across **GitHub Acti
 - [Deployment](#deployment)
 - [Extending the Agent](#extending-the-agent)
 
+For system design details, diagrams, and a 5-slide presentation prompt, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
 ---
 
 ## What It Does
@@ -137,12 +139,12 @@ cp .env.example .env
 Minimum required:
 
 ```env
-LLM_MODEL=your-provider-model
-LLM_API_KEY=your-provider-api-key
+LLM_MODEL=anthropic/claude-sonnet-4-20250514
+ANTHROPIC_API_KEY=sk-ant-...
 GITHUB_TOKEN=ghp_...        # if using GitHub
 ```
 
-You can also use provider-specific keys (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, etc.) instead of `LLM_API_KEY`.
+The backend only supports Claude, OpenAI, or Gemini keys: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, or `GOOGLE_API_KEY`.
 
 ### 3. Test locally (no CI platform needed)
 
@@ -492,9 +494,10 @@ Copy `.env.example` to `.env` and fill in only the platforms you use. Unused pla
 ```env
 # ── LLM (required) ────────────────────────────────────────────────────────
 LLM_MODEL=anthropic/claude-sonnet-4-20250514
-LLM_API_KEY=your-provider-api-key
-# LLM_API_BASE=              # optional — Ollama, Azure OpenAI, proxies
-# Or use provider-specific keys: ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, …
+ANTHROPIC_API_KEY=sk-ant-...
+# OPENAI_API_KEY=sk-...      # for OpenAI models, e.g. openai/gpt-4.1
+# GEMINI_API_KEY=...         # for Gemini models, e.g. gemini/gemini-2.5-pro
+# GOOGLE_API_KEY=...         # Gemini alias supported by Google tooling
 
 # ── GitHub ────────────────────────────────────────────────────────────────
 GITHUB_TOKEN=ghp_...
@@ -616,8 +619,8 @@ The dashboard auto-refreshes every 15 seconds. Data is read from `/api/history`.
 ```bash
 docker build -t cicd-agent .
 docker run -p 8080:8080 \
-  -e LLM_MODEL=your-provider-model \
-  -e LLM_API_KEY=your-api-key \
+  -e LLM_MODEL=anthropic/claude-sonnet-4-20250514 \
+  -e ANTHROPIC_API_KEY=sk-ant-... \
   -e GITHUB_TOKEN=ghp_... \
   -v $(pwd)/diagnoses.json:/app/diagnoses.json \
   cicd-agent

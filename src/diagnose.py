@@ -1,8 +1,8 @@
 """
 Diagnosis engine — sends build context to an LLM and parses the structured response.
 
-Supports any provider via LiteLLM (Anthropic, OpenAI, Google, Groq, Ollama, etc.).
-Configure with LLM_MODEL + LLM_API_KEY, or use provider-specific env vars.
+Supports Claude, OpenAI, and Gemini via LiteLLM.
+Configure with LLM_MODEL plus the matching provider API key.
 """
 
 import os
@@ -59,53 +59,19 @@ def _get_cfg(key: str, default: str = "") -> str:
 
 
 def _resolve_api_key(model: str) -> str:
-    """Pick an API key: LLM_API_KEY first, then provider-specific env vars."""
-    generic = _get_cfg("LLM_API_KEY")
-    if generic:
-        return generic
-
+    """Pick the provider-specific API key for the configured model."""
     model_lower = model.lower()
     provider_keys = [
         (("anthropic/", "claude"), "ANTHROPIC_API_KEY"),
-        (("openai/", "gpt-"), "OPENAI_API_KEY"),
+        (("openai/", "gpt-", "o1", "o3", "o4", "chatgpt"), "OPENAI_API_KEY"),
         (("gemini/", "gemini"), "GEMINI_API_KEY"),
-        (("groq/", "groq"), "GROQ_API_KEY"),
-        (("mistral/", "mistral"), "MISTRAL_API_KEY"),
-        (("deepseek/", "deepseek"), "DEEPSEEK_API_KEY"),
-        (("openrouter/", "openrouter"), "OPENROUTER_API_KEY"),
-        (("azure/", "azureopenai", "azure-openai"), "AZURE_API_KEY"),
-        (("cohere/", "command"), "COHERE_API_KEY"),
-        (("ollama/",), "OLLAMA_API_KEY"),
-        (("h2oai/", "h2o"), "H2OAI_API_KEY"),
+        (("gemini/", "gemini"), "GOOGLE_API_KEY"),
     ]
     for prefixes, env_key in provider_keys:
         if any(p in model_lower for p in prefixes):
             key = _get_cfg(env_key)
             if key:
                 return key
-
-    # Last resort: try common provider keys in case the model string is ambiguous.
-    for env_key in (
-        "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY",
-        "GROQ_API_KEY", "MISTRAL_API_KEY", "DEEPSEEK_API_KEY", "OPENROUTER_API_KEY",
-        "AZURE_API_KEY", "COHERE_API_KEY", "OLLAMA_API_KEY", "H2OAI_API_KEY",
-    ):
-        key = _get_cfg(env_key)
-        if key:
-            return key
-
-    # Fallback: use any configured API key variable if no explicit provider key was found.
-    config_keys = {}
-    if CONFIG_FILE.exists():
-        try:
-            config_keys = json.loads(CONFIG_FILE.read_text())
-        except Exception:
-            config_keys = {}
-
-    for env_key, value in {**os.environ, **config_keys}.items():
-        if env_key.endswith("_API_KEY") and value:
-            return value
-
     return ""
 
 
@@ -114,11 +80,11 @@ def get_llm_settings() -> dict:
     api_key = _resolve_api_key(model)
     if not api_key:
         raise ValueError(
-            "No LLM API key configured. Set LLM_API_KEY (works with any provider) or a "
-            "provider-specific key such as ANTHROPIC_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY."
+            "No supported provider API key configured for LLM_MODEL. "
+            "Use a Claude, OpenAI, or Gemini model and set ANTHROPIC_API_KEY, "
+            "OPENAI_API_KEY, GEMINI_API_KEY, or GOOGLE_API_KEY."
         )
-    api_base = _get_cfg("LLM_API_BASE") or None
-    return {"model": model, "api_key": api_key, "api_base": api_base}
+    return {"model": model, "api_key": api_key}
 
 
 def build_prompt(context: dict) -> str:
@@ -168,9 +134,6 @@ def diagnose_failure(context: dict) -> dict:
         ],
         "api_key": settings["api_key"],
     }
-    if settings["api_base"]:
-        kwargs["api_base"] = settings["api_base"]
-
     response = litellm.completion(**kwargs)
     raw = response.choices[0].message.content.strip()
 
