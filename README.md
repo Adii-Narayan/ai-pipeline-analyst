@@ -26,7 +26,8 @@ An AI-powered DevOps agent that diagnoses pipeline failures across **GitHub Acti
 - [Deployment](#deployment)
 - [Extending the Agent](#extending-the-agent)
 
-For system design details, diagrams, and a 5-slide presentation prompt, see [ARCHITECTURE.md](ARCHITECTURE.md).
+For system design details and diagrams,
+see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
