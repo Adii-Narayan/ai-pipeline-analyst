@@ -176,7 +176,7 @@ All four platforms share the **same single endpoint**. The server auto-detects w
 
 ### diagnose.py
 
-The Claude-powered diagnosis engine. Completely platform-agnostic — it receives a context dictionary and returns a structured JSON diagnosis. This file never changes regardless of which CI platforms you add.
+The Ai-powered diagnosis engine. Completely platform-agnostic — it receives a context dictionary and returns a structured JSON diagnosis. This file never changes regardless of which CI platforms you add.
 
 **Input — context dict:**
 
